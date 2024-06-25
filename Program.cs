@@ -1,14 +1,16 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Models;
 using AirBnb.Data;
 using AirBnb.Repositories;
 using AirBnb.Services;
-using Microsoft.OpenApi.Models;
-using AutoMapper;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
-using System.Reflection;
 using AirBnb.Options;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Versioning;
+using System.Reflection;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,8 +48,6 @@ builder.Services.AddCors(options =>
                .AllowAnyMethod();
     });
 });
-
-// Add API versioning
 builder.Services.AddApiVersioning(options =>
 {
     options.ReportApiVersions = true;
@@ -55,7 +55,6 @@ builder.Services.AddApiVersioning(options =>
     options.DefaultApiVersion = new ApiVersion(1, 0);
 });
 
-// Add API versioning explorer
 builder.Services.AddVersionedApiExplorer(options =>
 {
     options.GroupNameFormat = "'v'VVV";
@@ -63,15 +62,18 @@ builder.Services.AddVersionedApiExplorer(options =>
 });
 
 // Configure Swagger/OpenAPI
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "AirBnb API", Version = "v1" });
+    options.SwaggerDoc("v2", new OpenApiInfo { Title = "AirBnb API", Version = "v2" });
+
+    // Enable XML comments if needed
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "AirBnb API", Version = "v1" });
+    options.IncludeXmlComments(xmlPath);
 });
 
-builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+// Configure CORS, DbContext, etc. as needed
 
 var app = builder.Build();
 
@@ -80,7 +82,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "AirBnb API v1"));
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AirBnb API v1");
+        c.SwaggerEndpoint("/swagger/v2/swagger.json", "AirBnb API v2");
+    });
 }
 else
 {
@@ -96,7 +102,7 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowCloudBnb");
+app.UseCors(); // Add your CORS policy name if required
 app.UseAuthorization();
 app.MapControllers();
 app.Run();

@@ -1,57 +1,62 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using AirBnb.Data;
+﻿using Microsoft.AspNetCore.Mvc;
+using AutoMapper;
+using AirBnb.Services;
 using AirBnb.Models;
 using AirBnb.Repositories;
-using AirBnb.Services;
-using AutoMapper;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace AirBnb.ControllersAirbnb
+namespace AirBnb.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class LocationsController : ControllerBase
     {
         private readonly ILocationRepository _repository;
-        private readonly ISearchService _searchService;
         private readonly ILocationService _locationService;
         private readonly IMapper _mapper;
 
-        public LocationsController(ILocationRepository repository, ISearchService searchService, ILocationService locationService, IMapper mapper)
+        public LocationsController(ILocationRepository repository, ILocationService locationService, IMapper mapper)
         {
             _repository = repository;
-            _searchService = searchService;
             _locationService = locationService;
             _mapper = mapper;
         }
 
-        // GET: api/Locations
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<LocationDetailsDto>>> GetLocations()
+        public async Task<ActionResult<IEnumerable<LocationDto>>> GetLocations(CancellationToken cancellationToken)
         {
-            var locations = await _locationService.GetAllLocationsAsync();
-            var locationDTOs = _mapper.Map<IEnumerable<LocationDetailsDto>>(locations);
+            var locations = await _locationService.GetAllLocationsAsync(cancellationToken);
+            var locationDTOs = _mapper.Map<IEnumerable<LocationDto>>(locations);
             return Ok(locationDTOs);
         }
 
-        // GET: api/Locations
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<LocationDetailsDto>>> GetLocationDetails()
+        [HttpPost("Search")]
+        public async Task<ActionResult<IEnumerable<LocationDto>>> SearchLocations([FromBody] SearchRequestDto searchRequest, CancellationToken cancellationToken)
         {
-            var locationDetails = await _locationService.GetLocationDetailsAsync();
+            var locations = await _locationService.SearchLocationsAsync(searchRequest, cancellationToken);
+            return Ok(locations);
+        }
+
+        [HttpGet("GetMaxPrice")]
+        public async Task<ActionResult<MaxPriceDto>> GetMaxPrice(CancellationToken cancellationToken)
+        {
+            var maxPrice = await _locationService.GetMaxPriceAsync(cancellationToken);
+            return Ok(new MaxPriceDto { Price = maxPrice });
+        }
+
+        [HttpGet("GetDetails/{id}")]
+        public async Task<ActionResult<LocationDto>> GetDetails(int id, CancellationToken cancellationToken)
+        {
+            var locationDetails = await _locationService.GetLocationDetailsAsync(id, cancellationToken);
             return Ok(locationDetails);
         }
 
-        // GET: api/Locations/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Location>> GetLocation(int id)
+        public async Task<ActionResult<Location>> GetLocation(int id, CancellationToken cancellationToken)
         {
-            var location = await _repository.GetById(id);
+            var location = await _repository.GetById(id, cancellationToken);
 
             if (location == null)
             {
@@ -61,64 +66,50 @@ namespace AirBnb.ControllersAirbnb
             return Ok(location);
         }
 
-        // PUT: api/Locations/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutLocation(int id, Location location)
+        public async Task<IActionResult> PutLocation(int id, Location location, CancellationToken cancellationToken)
         {
             if (id != location.Id)
             {
                 return BadRequest();
             }
 
-            await _repository.Update(location);
+            await _repository.Update(location, cancellationToken);
 
             return NoContent();
         }
 
-        // POST: api/Locations
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Location>> PostLocation(Location location)
+        public async Task<ActionResult<Location>> PostLocation(Location location, CancellationToken cancellationToken)
         {
-            await _repository.Add(location);
+            await _repository.Add(location, cancellationToken);
             return CreatedAtAction(nameof(GetLocation), new { id = location.Id }, location);
         }
 
-        // DELETE: api/Locations/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteLocation(int id)
+        public async Task<IActionResult> DeleteLocation(int id, CancellationToken cancellationToken)
         {
-            var location = await _repository.GetById(id);
+            var location = await _repository.GetById(id, cancellationToken);
             if (location == null)
             {
                 return NotFound();
             }
 
-            await _repository.Delete(id);
+            await _repository.Delete(id, cancellationToken);
 
             return NoContent();
         }
 
-        private async Task<bool> LocationExists(int id)
+        [HttpGet("UnAvailableDates/{locationId}")]
+        public async Task<ActionResult<UnAvailableDatesResponseDto>> GetUnAvailableDates(int locationId)
         {
-            return await _repository.Exists(id);
+            var unavailableDates = await _locationService.GetUnAvailableDatesAsync(locationId);
+            return Ok(new UnAvailableDatesResponseDto { UnAvailableDates = unavailableDates });
         }
 
-        // GET: api/Locations/GetAll
-        [HttpGet("GetAll")]
-        public async Task<ActionResult<IEnumerable<Location>>> GetAll()
+        private async Task<bool> LocationExists(int id, CancellationToken cancellationToken)
         {
-            var locations = await _locationService.GetAllLocationsAsync();
-            return Ok(locations);
-        }
-
-        // Search locations by keyword and landlordId
-        [HttpGet("Search")]
-        public async Task<ActionResult<IEnumerable<Location>>> SearchLocations(string keyword, int? landlordId)
-        {
-            var locations = await _searchService.SearchLocationsAsync(keyword, landlordId);
-            return Ok(locations);
+            return await _repository.Exists(id, cancellationToken);
         }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using AirBnb.Services;
 using System.Threading.Tasks;
+using System;
+using AirBnb.Models;
 
 namespace AirBnb.Controllers
 {
@@ -15,10 +17,10 @@ namespace AirBnb.Controllers
             _reservationService = reservationService;
         }
 
-        [HttpPost("{locationId}")]
-        public async Task<IActionResult> MakeReservation(int locationId, int customerId, DateTime startDate, DateTime endDate)
+        [HttpPost]
+        public async Task<IActionResult> MakeReservation([FromBody] CreateReservationRequestDto requestDto)
         {
-            await _reservationService.MakeReservationAsync(locationId, customerId, startDate, endDate);
+            await _reservationService.MakeReservationAsync(requestDto);
             return Ok();
         }
 

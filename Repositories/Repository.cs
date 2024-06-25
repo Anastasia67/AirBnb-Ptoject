@@ -1,65 +1,62 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using AirBnb.Data;
+using AirBnb.Repositories;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
-using AirBnb.Data;
 
-namespace AirBnb.Repositories
+public class Repository<T> : IRepository<T> where T : class
 {
-    public class Repository<T> : IRepository<T> where T : class
+    protected readonly AirBnBDbContext Context;
+
+    public Repository(AirBnBDbContext context)
     {
-        private readonly AirBnBDbContext _context;
-        private readonly DbSet<T> _dbSet;
+        Context = context ?? throw new ArgumentNullException(nameof(context));
+    }
 
-        public Repository(AirBnBDbContext context)
-        {
-            _context = context;
-            _dbSet = context.Set<T>();
-        }
+    public virtual async Task<IEnumerable<T>> GetAll(CancellationToken cancellationToken)
+    {
+        return await Context.Set<T>().ToListAsync(cancellationToken);
+    }
 
-        public async Task<IEnumerable<T>> GetAll()
-        {
-            return await _dbSet.ToListAsync();
-        }
+    public virtual async Task<T> GetById(int id, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<T>().FindAsync(new object[] { id }, cancellationToken);
+    }
 
-        public async Task<T> GetById(int id)
-        {
-            return await _dbSet.FindAsync(id);
-        }
+    public virtual async Task Add(T entity, CancellationToken cancellationToken = default)
+    {
+        await Context.Set<T>().AddAsync(entity, cancellationToken);
+        await Context.SaveChangesAsync(cancellationToken);
+    }
 
-        public async Task Add(T entity)
-        {
-            await _dbSet.AddAsync(entity);
-            await _context.SaveChangesAsync();
-        }
+    public virtual async Task Update(T entity, CancellationToken cancellationToken = default)
+    {
+        Context.Entry(entity).State = EntityState.Modified;
+        await Context.SaveChangesAsync(cancellationToken);
+    }
 
-        public async Task Update(T entity)
+    public virtual async Task Delete(int id, CancellationToken cancellationToken = default)
+    {
+        var entity = await GetById(id, cancellationToken);
+        if (entity != null)
         {
-            _dbSet.Attach(entity);
-            _context.Entry(entity).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
+            Context.Set<T>().Remove(entity);
+            await Context.SaveChangesAsync(cancellationToken);
         }
+    }
 
-        public async Task Delete(int id)
-        {
-            var entity = await _dbSet.FindAsync(id);
-            if (entity != null)
-            {
-                _dbSet.Remove(entity);
-                await _context.SaveChangesAsync();
-            }
-        }
+    public virtual async Task<IEnumerable<T>> Find(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<T>().Where(predicate).ToListAsync(cancellationToken);
+    }
 
-        public async Task<IEnumerable<T>> Find(Expression<Func<T, bool>> predicate)
-        {
-            return await _dbSet.Where(predicate).ToListAsync();
-        }
+    public virtual async Task<bool> Exists(int id, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<T>().AnyAsync(e => EF.Property<int>(e, "Id") == id, cancellationToken);
+    }
 
-        public async Task<bool> Exists(int id)
-        {
-            return await _dbSet.FindAsync(id) != null;
-        }
+    public virtual async Task<T> GetByEmail(string email, CancellationToken cancellationToken = default)
+    {
+       
+        return await Context.Set<T>().FirstOrDefaultAsync(c => EF.Property<string>(c, "Email") == email, cancellationToken);
     }
 }

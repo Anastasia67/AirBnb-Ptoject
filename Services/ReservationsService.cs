@@ -1,60 +1,64 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using AirBnb.Models;
+﻿using AirBnb.Models;
 using AirBnb.Repositories;
+using System;
+using System.Threading.Tasks;
 
 namespace AirBnb.Services
 {
     public class ReservationsService : IReservationsService
     {
-        private readonly IRepository<Location> _locationRepository;
-        private readonly IRepository<Reservations> _reservationRepository;
+        private readonly ILocationRepository _locationRepository;
+        private readonly IReservationRepository _reservationRepository;
         private readonly IRepository<Customers> _customerRepository;
 
-        public ReservationsService(IRepository<Location> locationRepository, IRepository<Reservations> reservationRepository, IRepository<Customers> customerRepository)
+        public ReservationsService(ILocationRepository locationRepository, IReservationRepository reservationRepository, IRepository<Customers> customerRepository)
         {
             _locationRepository = locationRepository;
             _reservationRepository = reservationRepository;
             _customerRepository = customerRepository;
         }
 
-        public async Task MakeReservationAsync(int locationId, int customerId, DateTime startDate, DateTime endDate)
+        public async Task MakeReservationAsync(CreateReservationRequestDto requestDto)
         {
-            var location = await _locationRepository.GetById(locationId);
+            var location = await _locationRepository.GetById(requestDto.LocationId, default);
             if (location == null)
             {
                 throw new KeyNotFoundException("Location not found");
             }
 
-            var customer = await _customerRepository.GetById(customerId);
+            var customer = await _customerRepository.GetByEmail(requestDto.Email);
             if (customer == null)
             {
-                throw new KeyNotFoundException("Customer not found");
+                customer = new Customers
+                {
+                    Email = requestDto.Email,
+                    FirstName = requestDto.FirstName,
+                    LastName = requestDto.LastName
+                };
+                await _customerRepository.Add(customer, default);
             }
 
-            var reservations = new Reservations
+            var reservation = new Reservations
             {
-                LocationId = locationId,
-                Location = location,
-                CustomerId = customerId,
-                Customer = customer,
-                StartDate = startDate,
-                EndDate = endDate
+                LocationId = requestDto.LocationId,
+                CustomerId = customer.Id,
+                StartDate = requestDto.StartDate,
+                EndDate = requestDto.EndDate,
+                Discount = requestDto.Discount ?? 0 
             };
 
-            await _reservationRepository.Add(reservations);
+            await _reservationRepository.Add(reservation, default);
         }
 
-        public async Task CancelReservationAsync(int reservationsId)
+        public async Task CancelReservationAsync(int reservationId)
         {
-            var reservations = await _reservationRepository.GetById(reservationsId);
-            if (reservations == null)
+            var reservation = await _reservationRepository.GetById(reservationId, default);
+            if (reservation == null)
             {
                 throw new KeyNotFoundException("Reservation not found");
             }
 
-            await _reservationRepository.Delete(reservationsId);
+            await _reservationRepository.Delete(reservationId, default);
         }
     }
 }

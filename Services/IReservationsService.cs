@@ -1,11 +1,11 @@
-﻿using System.Threading.Tasks;
-using AirBnb.Models;
+﻿using AirBnb.Models;
+using System.Threading.Tasks;
 
 namespace AirBnb.Services
 {
     public interface IReservationsService
     {
-        Task MakeReservationAsync(int locationId, int customerId, DateTime startDate, DateTime endDate);
+        Task MakeReservationAsync(CreateReservationRequestDto requestDto);
         Task CancelReservationAsync(int reservationId);
     }
 }
